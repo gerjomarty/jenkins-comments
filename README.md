@@ -36,7 +36,7 @@ heroku addons:add redistogo:nano
 heroku config:add JENKINS_URL=http://jenkins.mycompany.com
 heroku config:add NODE_ENV=production
 
-heroku ps:dynos 1
+heroku scale web=1
 ```
 
 ### Setup your app with permissions for GitHub
