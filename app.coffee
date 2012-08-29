@@ -14,8 +14,7 @@ else
 class PullRequestCommenter
   BUILDREPORT = "**Build Status**:"
 
-  constructor: (@sha, @job_name, @job_number, @user, @repo, @succeeded) ->
-    @job_url = "#{process.env.JENKINS_URL}/job/#{@job_name}/#{@job_number}/console"
+  constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
     @api = "https://api.github.com/repos/#{@user}/#{@repo}"
     @token = "?access_token=#{process.env.GITHUB_USER_TOKEN}"
 
@@ -55,10 +54,10 @@ class PullRequestCommenter
       console.log e if e?
 
   successComment: ->
-    "#{BUILDREPORT} :green_heart: `Succeeded` (#{@sha}, [job info](#{@job_url}))"
+    "#{BUILDREPORT} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
 
   errorComment: ->
-    "#{BUILDREPORT} :broken_heart: `Failed` (#{@sha}, [job info](#{@job_url}))"
+    "#{BUILDREPORT} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
 
   # Find the first open pull with a matching HEAD sha
   findMatchingPull: (pulls, cb) =>
@@ -119,6 +118,7 @@ app.get '/jenkins/post_build', (req, res) ->
   if sha
     job_name = req.param 'job_name'
     job_number = parseInt req.param 'job_number'
+    build_url = req.param 'build_url'
     user = req.param 'user'
     repo = req.param 'repo'
     succeeded = req.param('status') is 'success'
@@ -127,13 +127,14 @@ app.get '/jenkins/post_build', (req, res) ->
     redis.hmset sha, {
       "job_name": job_name,
       "job_number": job_number,
+      "build_url": build_url,
       "user": user,
       "repo": repo,
       "succeeded": succeeded
     }
 
     # Look for an open pull request with this SHA and make comments.
-    commenter = new PullRequestCommenter sha, job_name, job_number, user, repo, succeeded
+    commenter = new PullRequestCommenter sha, job_name, job_number, build_url, user, repo, succeeded
     commenter.updateComments (e, r) -> console.log e if e?
     res.send 200
   else
@@ -151,7 +152,7 @@ app.post '/github/post_receive', (req, res) ->
       # Convert stored string to boolean
       obj.succeeded = (obj.succeeded == "true" ? true : false)
 
-      commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.user, obj.repo, obj.succeeded
+      commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.build_url, obj.user, obj.repo, obj.succeeded
       commenter.updateComments (e, r) -> console.log e if e?
 
     res.send 201

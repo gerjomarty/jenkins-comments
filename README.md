@@ -97,7 +97,8 @@ curl "http://mycompany-jenkins-comments.herokuapp.com/jenkins/post_build\
 &sha=$GIT_COMMIT\
 &status=$BUILD_STATUS\
 &job_name=FooBar%20Tests\
-&job_number=$BUILD_NUMBER"
+&job_number=$BUILD_NUMBER\
+&build_url=$BUILD_URL"
 ```
 
 ### Configure GitHub to notify us of an opened pull request
