@@ -91,12 +91,12 @@ In **Post-build Actions > Post build task > script**, we'll add a curl
 statement to post the job status to `mycompany-jenkins-comments.herokuapp.com`:
 
 ```sh
-curl "http://mycompany-jenkins-comments.herokuapp.com/jenkins/post_build\
-?user=MyCompany\
+curl "http://mycompany-jenkins-comments.herokuapp.com/jenkins/post_build?\
+user=MyCompany\
 &repo=FooBar\
 &sha=$GIT_COMMIT\
 &status=$BUILD_STATUS\
-&job_name=FooBar%20Tests\
+&job_name=$JOB_NAME\
 &job_number=$BUILD_NUMBER\
 &build_url=$BUILD_URL"
 ```
