@@ -12,7 +12,7 @@ else
   redis = require("redis").createClient()
 
 class PullRequestCommenter
-  BUILDREPORT = "**Build Status**:"
+  BUILD_REPORT = "**Build Status**:"
 
   constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
     @api = "https://api.github.com/repos/#{@user}/#{@repo}"
@@ -40,9 +40,6 @@ class PullRequestCommenter
   getCommentsForIssue: (issue, cb) =>
     @get "/issues/#{issue}/comments", cb
 
-  filterCommentsByJob: (comments, job_name) =>
-    _.filter comments, ({ body }) -> _s.startsWith body, "**#{job_name}**"
-
   deleteComment: (id, cb) =>
     @del "/issues/comments/#{id}", cb
 
@@ -56,11 +53,14 @@ class PullRequestCommenter
     @post "/issues/#{issue}/comments", (body: comment), (e, body) ->
       console.log e if e?
 
+  buildString: ->
+    "**#{@job_name}**\n#{BUILD_REPORT}"
+
   successComment: ->
-    "**#{@job_name}**\n#{BUILDREPORT} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
+    "#{@buildString()} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
 
   errorComment: ->
-    "**#{@job_name}**\n#{BUILDREPORT} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
+    "#{@buildString()} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
 
   # Find the first open pull with a matching HEAD sha
   findMatchingPull: (pulls, cb) =>
@@ -74,10 +74,11 @@ class PullRequestCommenter
       cb null, match
 
   removePreviousPullComments: (pull, cb) =>
+    build_string = @buildString()
     @getCommentsForIssue pull.number, (e, comments) =>
       return cb e if e?
-      filtered_comments = @filterCommentsByJob comments, @job_name
-      async.forEach filtered_comments, (comment, done_delete) =>
+      old_comments = _.filter comments, ({ body }) -> _s.include body, build_string
+      async.forEach old_comments, (comment, done_delete) =>
         @deleteComment comment.id, done_delete
       , () -> cb null, pull
 
