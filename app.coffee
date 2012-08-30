@@ -74,9 +74,10 @@ class PullRequestCommenter
       cb null, match
 
   removePreviousPullComments: (pull, cb) =>
+    build_string = @buildString()
     @getCommentsForIssue pull.number, (e, comments) =>
       return cb e if e?
-      old_comments = _.filter comments, ({ body }) -> _s.include body, @buildString()
+      old_comments = _.filter comments, ({ body }) -> _s.include body, build_string
       async.forEach old_comments, (comment, done_delete) =>
         @deleteComment comment.id, done_delete
       , () -> cb null, pull
