@@ -2,12 +2,15 @@
     "name": "jenkins-pull-request-commenter"
   , "version": "0.0.1"
   , "private": true
+  , "engines": {
+      "node": "0.8.7"
+    , "npm":  "1.1.49"
+  }
   , "dependencies": {
       "express": "2.5.7"
     , "redis": "0.7.1"
     , "jade": ">= 0.0.1"
     , "coffee-script": "1.2.x"
-    , "zlib": "*"
     , "underscore": "*"
     , "underscore.string": "*"
     , "request": "*"
