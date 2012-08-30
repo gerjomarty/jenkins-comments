@@ -54,10 +54,10 @@ class PullRequestCommenter
       console.log e if e?
 
   successComment: ->
-    "#{BUILDREPORT} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
+    "**#{@job_name}**\n#{BUILDREPORT} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
 
   errorComment: ->
-    "#{BUILDREPORT} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
+    "**#{@job_name}**\n#{BUILDREPORT} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
 
   # Find the first open pull with a matching HEAD sha
   findMatchingPull: (pulls, cb) =>
