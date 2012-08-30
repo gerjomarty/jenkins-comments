@@ -87,7 +87,7 @@ class PullRequestCommenter
     async.waterfall [
       @getPulls
       @findMatchingPull
-      @removePreviousPullComments
+      #@removePreviousPullComments
       @makePullComment
     ], cb
 
