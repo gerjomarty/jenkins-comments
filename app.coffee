@@ -12,10 +12,11 @@ else
   redis = require("redis").createClient()
 
 class PullRequestCommenter
+  BUILDREPORT = "**Build Status**:"
+
   constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
     @api = "https://api.github.com/repos/#{@user}/#{@repo}"
     @token = "?access_token=#{process.env.GITHUB_USER_TOKEN}"
-    @build_report = "**#{@job_name}**\n**Build Status**:"
 
   post: (path, obj, cb) =>
     console.log "POST #{@api}#{path}#{@token}"
@@ -53,10 +54,10 @@ class PullRequestCommenter
       console.log e if e?
 
   successComment: ->
-    "#{@build_report} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
+    "#{BUILDREPORT} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
 
   errorComment: ->
-    "#{@build_report} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
+    "#{BUILDREPORT} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
 
   # Find the first open pull with a matching HEAD sha
   findMatchingPull: (pulls, cb) =>
@@ -72,7 +73,7 @@ class PullRequestCommenter
   removePreviousPullComments: (pull, cb) =>
     @getCommentsForIssue pull.number, (e, comments) =>
       return cb e if e?
-      old_comments = _.filter comments, ({ body }) -> _s.include body, @build_report
+      old_comments = _.filter comments, ({ body }) -> _s.include body, BUILDREPORT
       async.forEach old_comments, (comment, done_delete) =>
         @deleteComment comment.id, done_delete
       , () -> cb null, pull
