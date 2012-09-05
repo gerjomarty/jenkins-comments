@@ -11,6 +11,85 @@ if process.env.REDISTOGO_URL
 else
   redis = require("redis").createClient()
 
+class StatusPusher
+  constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
+    @api = "https://api.github.com/repos/#{@user}/#{@repo}"
+    @token = "?access_token=#{process.env.GITHUB_USER_TOKEN}"
+
+  post: (path, obj, cb) =>
+    console.log "POST #{@api}#{path}#{@token}"
+    console.dir obj
+    request.post { uri: "#{@api}#{path}#{@token}", json: obj }, (e, r, body) ->
+      console.log body if process.env.DEBUG
+      cb e, body
+
+  get: (path, cb) =>
+    console.log "GET #{@api}#{path}#{@token}"
+    request.get { uri: "#{@api}#{path}#{@token}", json: true }, (e, r, body) ->
+      console.log body if process.env.DEBUG
+      cb e, body
+
+  getStatusForSha: (sha, cb) =>
+    @get "/statuses/#{sha}", cb
+
+  pushSuccessStatusForSha: (sha) =>
+    @post "/statuses/#{sha}", (state: "success"), (e, body) ->
+      console.log e if e?
+
+  pushPendingStatusForSha: (sha) =>
+    @post "/statuses/#{sha}", (state: "pending"), (e, body) ->
+      console.log e if e?
+
+  pushErrorStatusForSha: (sha, targetUrl, description) =>
+    description = "Tests with errors: " + description.join ", "
+    @post "/statuses/#{sha}", (state: "error", target_url: targetUrl, description: description), (e, body) ->
+      console.log e if e?
+
+  pushFailureStatusForSha: (sha, targetUrl, description) =>
+    description = "Failing tests: " + description.join ", "
+    @post "/statuses/#{sha}", (state: "failure", target_url: targetUrl, description: description), (e, body) ->
+      console.log e if e?
+
+  addStatusToStore: (cb) =>
+    redis.hmset "#{@sha}:#{@job_name}", {
+      "job_number": @job_number,
+      "build_url": @build_url,
+      "user": @user,
+      "repo": @repo,
+      "succeeded": @succeeded
+    }
+    redis.sadd @sha, @job_name
+    cb null, 'done'
+
+  pushStatus: (cb) =>
+    # Assuming 3 kinds of test here (functional, application, logic)
+    noOfTests = 0
+    success = true
+    targetUrl = null
+    description = []
+    redis.smembers @sha, (mErr, tests) ->
+      tests.forEach (test, i) ->
+        noOfTests++;
+        redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) ->
+          if buildObj.succeeded != "true"
+            success = false
+            targetUrl ||= buildObj.build_url
+            description << buildObj.job_name
+    if success
+      if noOfTests == 3
+        @pushSuccessStatusForSha @sha
+      else
+        @pushPendingStatusForSha @sha
+    else
+      @pushFailureStatusForSha @sha, targetUrl, description
+    cb null, 'done'
+
+  updateStatus: (cb) ->
+    async.series [
+      @addStatusToStore,
+      @pushStatus
+    ], cb
+
 class PullRequestCommenter
   BUILDREPORT = "**Build Status**:"
 
@@ -124,18 +203,21 @@ app.get '/jenkins/post_build', (req, res) ->
     succeeded = req.param('status') is 'success'
 
     # Store the status of this sha for later
-    redis.hmset sha, {
-      "job_name": job_name,
-      "job_number": job_number,
-      "build_url": build_url,
-      "user": user,
-      "repo": repo,
-      "succeeded": succeeded
-    }
+    #redis.hmset sha, {
+    #  "job_name": job_name,
+    #  "job_number": job_number,
+    #  "build_url": build_url,
+    #  "user": user,
+    #  "repo": repo,
+    #  "succeeded": succeeded
+    #}
 
     # Look for an open pull request with this SHA and make comments.
-    commenter = new PullRequestCommenter sha, job_name, job_number, build_url, user, repo, succeeded
-    commenter.updateComments (e, r) -> console.log e if e?
+    #commenter = new PullRequestCommenter sha, job_name, job_number, build_url, user, repo, succeeded
+    #commenter.updateComments (e, r) -> console.log e if e?
+
+    pusher = new StatusPusher sha, job_name, job_number, build_url, user, repo, succeeded
+    pusher.updateStatus (e, r) -> console.log e if e?
     res.send 200
   else
     res.send 400
@@ -148,12 +230,12 @@ app.post '/github/post_receive', (req, res) ->
     sha = payload.pull_request.head.sha
 
     # Get the sha status from earlier and insta-comment the status
-    redis.hgetall sha, (err, obj) ->
+    #redis.hgetall sha, (err, obj) ->
       # Convert stored string to boolean
-      obj.succeeded = (obj.succeeded == "true" ? true : false)
+      #obj.succeeded = (obj.succeeded == "true" ? true : false)
 
-      commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.build_url, obj.user, obj.repo, obj.succeeded
-      commenter.updateComments (e, r) -> console.log e if e?
+      #commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.build_url, obj.user, obj.repo, obj.succeeded
+      #commenter.updateComments (e, r) -> console.log e if e?
 
     res.send 201
   else
