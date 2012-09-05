@@ -37,7 +37,7 @@ class StatusPusher
       console.log e if e?
 
   pushPendingStatusForSha: (sha) =>
-    @post "/statuses/#{sha}", (state: "pending", description: "Currently running Application, Logic and Functional Tests on Jenkins"), (e, body) ->
+    @post "/statuses/#{sha}", (state: "pending"), (e, body) ->
       console.log e if e?
 
   pushErrorStatusForSha: (sha, targetUrl, description) =>
@@ -51,6 +51,9 @@ class StatusPusher
       console.log e if e?
 
   addStatusToStore: (cb) =>
+    console.log "sha and job name"
+    console.dir @sha
+    console.dir @job_name
     redis.hmset "#{@sha}:#{@job_name}", {
       "job_number": @job_number,
       "build_url": @build_url,
@@ -63,15 +66,15 @@ class StatusPusher
 
   pushStatus: (cb) =>
     # Assuming 3 kinds of test here (functional, application, logic)
-    noOfTests = 0
     success = true
     targetUrl = null
     description = []
+    console.log "pushStatus sha"
+    console.dir @sha
     redis.smembers @sha, (mErr, tests) ->
       console.log "smembers..."
       console.dir tests
       tests.forEach (test, i) ->
-        noOfTests++;
         redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) ->
           console.log "hgetall for #{@sha}:#{test}..."
           console.dir buildObj
@@ -83,10 +86,12 @@ class StatusPusher
       console.log "success"
       console.log "noOfTests..."
       console.dir noOfTests
-      if noOfTests == 3
-        @pushSuccessStatusForSha @sha
-      else
-        @pushPendingStatusForSha @sha
+      redis.scard @sha, (cErr, cReply) ->
+        noOfTests = parseInt cReply
+        if noOfTests == 3
+          @pushSuccessStatusForSha @sha
+        else
+          @pushPendingStatusForSha @sha
     else
       console.log "failure"
       @pushFailureStatusForSha @sha, targetUrl, description
