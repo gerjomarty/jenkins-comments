@@ -37,7 +37,7 @@ class StatusPusher
       console.log e if e?
 
   pushPendingStatusForSha: (sha) =>
-    @post "/statuses/#{sha}", (state: "pending"), (e, body) ->
+    @post "/statuses/#{sha}", (state: "pending", description: "Currently running Application, Logic and Functional Tests on Jenkins"), (e, body) ->
       console.log e if e?
 
   pushErrorStatusForSha: (sha, targetUrl, description) =>
@@ -68,19 +68,27 @@ class StatusPusher
     targetUrl = null
     description = []
     redis.smembers @sha, (mErr, tests) ->
+      console.log "smembers..."
+      console.dir tests
       tests.forEach (test, i) ->
         noOfTests++;
         redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) ->
+          console.log "hgetall for #{@sha}:#{test}..."
+          console.dir buildObj
           if buildObj.succeeded != "true"
             success = false
             targetUrl ||= buildObj.build_url
             description << buildObj.job_name
     if success
+      console.log "success"
+      console.log "noOfTests..."
+      console.dir noOfTests
       if noOfTests == 3
         @pushSuccessStatusForSha @sha
       else
         @pushPendingStatusForSha @sha
     else
+      console.log "failure"
       @pushFailureStatusForSha @sha, targetUrl, description
     cb null, 'done'
 
