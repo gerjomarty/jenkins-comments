@@ -71,12 +71,13 @@ class StatusPusher
     description = []
     console.log "pushStatus sha"
     console.dir @sha
-    redis.smembers @sha, (mErr, tests) ->
+    sha = @sha
+    redis.smembers sha, (mErr, tests) ->
       console.log "smembers..."
       console.dir tests
-      tests.forEach (test, i) =>
-        redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) ->
-          console.log "hgetall for #{@sha}:#{test}..."
+      tests.forEach (test, i) ->
+        redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
+          console.log "hgetall for #{sha}:#{test}..."
           console.dir buildObj
           if buildObj.succeeded != "true"
             success = false
@@ -84,17 +85,17 @@ class StatusPusher
             description << buildObj.job_name
     if success
       console.log "success"
-      redis.scard @sha, (cErr, cReply) =>
+      redis.scard sha, (cErr, cReply) =>
         noOfTests = parseInt cReply
         console.log "noOfTests"
         console.dir noOfTests
         if noOfTests == 3
-          @pushSuccessStatusForSha @sha
+          @pushSuccessStatusForSha sha
         else
-          @pushPendingStatusForSha @sha
+          @pushPendingStatusForSha sha
     else
       console.log "failure"
-      @pushFailureStatusForSha @sha, targetUrl, description
+      @pushFailureStatusForSha sha, targetUrl, description
     cb null, 'done'
 
   updateStatus: (cb) ->
@@ -238,6 +239,8 @@ app.get '/jenkins/post_build', (req, res) ->
 # GitHub lets us know when a pull request has been opened.
 app.post '/github/post_receive', (req, res) ->
   payload = JSON.parse req.body.payload
+  console.log "post receive payload"
+  console.dir payload
 
   if payload.pull_request
     sha = payload.pull_request.head.sha
