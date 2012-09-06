@@ -80,16 +80,16 @@ class StatusPusher
       cb null, sha, tests
 
   findAllTestResults: (sha, tests, cb) =>
-    async.map tests,
-      ((test, icb) => icb null, findTestResult(sha, test)),
+    async.mapSeries tests,
+      ((test, icb) => icb null, @findTestResult(sha, test)),
       (err, results) ->
         console.log "found all test results"
         console.dir results
         cb null, sha, tests, results
 
   pushStatus: (sha, tests, results, cb) =>
-    async.reject results,
-      ((result, icb) -> icb (result.length == 0)),
+    async.rejectSeries results,
+      ((result, icb) -> icb (result.length == 0 ? true : false)),
       (failedTests) =>
         console.log "failed tests"
         console.dir failedTests
