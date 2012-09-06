@@ -74,7 +74,7 @@ class StatusPusher
     redis.smembers @sha, (mErr, tests) ->
       console.log "smembers..."
       console.dir tests
-      tests.forEach (test, i) ->
+      tests.forEach (test, i) =>
         redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) ->
           console.log "hgetall for #{@sha}:#{test}..."
           console.dir buildObj
