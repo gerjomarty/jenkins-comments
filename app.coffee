@@ -71,13 +71,12 @@ class StatusPusher
     description = []
     console.log "pushStatus sha"
     console.dir @sha
-    sha = @sha
-    redis.smembers sha, (mErr, tests) ->
+    redis.smembers @sha, (mErr, tests) =>
       console.log "smembers..."
       console.dir tests
-      tests.forEach (test, i) ->
-        redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
-          console.log "hgetall for #{sha}:#{test}..."
+      tests.forEach (test, i) =>
+        redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) =>
+          console.log "hgetall for #{@sha}:#{test}..."
           console.dir buildObj
           if buildObj.succeeded != "true"
             success = false
@@ -85,17 +84,17 @@ class StatusPusher
             description << buildObj.job_name
           if success
             console.log "success"
-            redis.scard sha, (cErr, cReply) =>
+            redis.scard @sha, (cErr, cReply) =>
               noOfTests = parseInt cReply
               console.log "noOfTests"
               console.dir noOfTests
               if noOfTests == 3
-                @pushSuccessStatusForSha sha
+                @pushSuccessStatusForSha @sha
               else
-                @pushPendingStatusForSha sha
+                @pushPendingStatusForSha @sha
           else
             console.log "failure"
-            @pushFailureStatusForSha sha, targetUrl, description
+            @pushFailureStatusForSha @sha, targetUrl, description
           cb null, 'done'
 
   updateStatus: (cb) ->
