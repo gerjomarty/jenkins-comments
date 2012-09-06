@@ -41,12 +41,12 @@ class StatusPusher
       console.log e if e?
 
   pushErrorStatusForSha: (sha, targetUrl, description) =>
-    description = "Tests with errors: " + description.join ", "
+    description = description.join ", "
     @post "/statuses/#{sha}", (state: "error", target_url: targetUrl, description: description), (e, body) ->
       console.log e if e?
 
   pushFailureStatusForSha: (sha, targetUrl, description) =>
-    description = "Failing tests: " + description.join ", "
+    description = description.join ", "
     @post "/statuses/#{sha}", (state: "failure", target_url: targetUrl, description: description), (e, body) ->
       console.log e if e?
 
@@ -158,7 +158,8 @@ app.post '/github/post_receive', (req, res) ->
 
     pusher = new StatusPusher sha, null, null, null, user, repo, null
     statuses = pusher.getStatusForSha sha
-    pusher.pushPendingStatusForSha sha if statuses.length == 0
+    if statuses.length == 0
+      pusher.pushPendingStatusForSha sha, (e, r) -> console.log e if e?
 
     res.send 201
   else
