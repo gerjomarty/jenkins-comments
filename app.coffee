@@ -37,7 +37,7 @@ class StatusPusher
       console.log e if e?
 
   pushPendingStatusForSha: (sha) =>
-    @post "/statuses/#{sha}", (state: "pending"), (e, body) ->
+    @post "/statuses/#{sha}", (state: "pending", description: process.env.PENDING_DESCRIPTION), (e, body) ->
       console.log e if e?
 
   pushErrorStatusForSha: (sha, targetUrl, description) =>
@@ -87,7 +87,7 @@ class StatusPusher
       ((result, icb) -> icb (result.length == 0 ? true : false)),
       (failedTests) =>
         if failedTests.length == 0
-          if tests.length == 3
+          if tests.length == parseInt(process.env.NO_OF_INDIVIDUAL_TESTS)
             @pushSuccessStatusForSha sha
           else
             @pushPendingStatusForSha sha
@@ -109,89 +109,6 @@ class StatusPusher
       @pushStatus
     ], cb
 
-
-
-
-class PullRequestCommenter
-  BUILDREPORT = "**Build Status**:"
-
-  constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
-    @api = "https://api.github.com/repos/#{@user}/#{@repo}"
-    @token = "?access_token=#{process.env.GITHUB_USER_TOKEN}"
-
-  post: (path, obj, cb) =>
-    console.log "POST #{@api}#{path}#{@token}"
-    console.dir obj
-    request.post { uri: "#{@api}#{path}#{@token}", json: obj }, (e, r, body) ->
-      console.log body if process.env.DEBUG
-      cb e, body
-
-  get: (path, cb) =>
-    console.log "GET #{@api}#{path}#{@token}"
-    request.get { uri: "#{@api}#{path}#{@token}", json: true }, (e, r, body) ->
-      console.log body if process.env.DEBUG
-      cb e, body
-
-  del: (path, cb) =>
-    console.log "DELETE #{@api}#{path}#{@token}"
-    request.del { uri: "#{@api}#{path}#{@token}" }, (e, r, body) ->
-      console.log body if process.env.DEBUG
-      cb e, body
-
-  getCommentsForIssue: (issue, cb) =>
-    @get "/issues/#{issue}/comments", cb
-
-  deleteComment: (id, cb) =>
-    @del "/issues/comments/#{id}", cb
-
-  getPulls: (cb) =>
-    @get "/pulls", cb
-
-  getPull: (id, cb) =>
-    @get "/pulls/#{id}", cb
-
-  commentOnIssue: (issue, comment) =>
-    @post "/issues/#{issue}/comments", (body: comment), (e, body) ->
-      console.log e if e?
-
-  successComment: ->
-    "**#{@job_name}**\n#{BUILDREPORT} :green_heart: `Succeeded` (#{@sha}, [job info](#{@build_url}))"
-
-  errorComment: ->
-    "**#{@job_name}**\n#{BUILDREPORT} :broken_heart: `Failed` (#{@sha}, [job info](#{@build_url}))"
-
-  # Find the first open pull with a matching HEAD sha
-  findMatchingPull: (pulls, cb) =>
-    pulls = _.filter pulls, (p) => p.state is 'open'
-    async.detect pulls, (pull, detect_if) =>
-      @getPull pull.number, (e, { head }) =>
-        return cb e if e?
-        detect_if head.sha is @sha
-    , (match) =>
-      return cb "No pull request for #{@sha} found" unless match?
-      cb null, match
-
-  removePreviousPullComments: (pull, cb) =>
-    @getCommentsForIssue pull.number, (e, comments) =>
-      return cb e if e?
-      old_comments = _.filter comments, ({ body }) -> _s.include body, BUILDREPORT
-      async.forEach old_comments, (comment, done_delete) =>
-        @deleteComment comment.id, done_delete
-      , () -> cb null, pull
-
-  makePullComment: (pull, cb) =>
-    comment = if @succeeded then @successComment() else @errorComment()
-    @commentOnIssue pull.number, comment
-    cb()
-
-  updateComments: (cb) ->
-    async.waterfall [
-      @getPulls
-      @findMatchingPull
-      #@removePreviousPullComments
-      @makePullComment
-    ], cb
-
 app = module.exports = express.createServer()
 
 app.configure ->
@@ -207,7 +124,7 @@ app.configure 'production', ->
 # Route for uptime pings and general curiosity
 app.get '/', (req, res) ->
   res.send '
-    <a href="https://github.com/cramerdev/jenkins-comments">
+    <a href="https://github.com/gerjomarty/jenkins-comments">
       jenkins-comments
     </a>
   ', 200
@@ -224,20 +141,6 @@ app.get '/jenkins/post_build', (req, res) ->
     repo = req.param 'repo'
     succeeded = req.param('status') is 'success'
 
-    # Store the status of this sha for later
-    #redis.hmset sha, {
-    #  "job_name": job_name,
-    #  "job_number": job_number,
-    #  "build_url": build_url,
-    #  "user": user,
-    #  "repo": repo,
-    #  "succeeded": succeeded
-    #}
-
-    # Look for an open pull request with this SHA and make comments.
-    #commenter = new PullRequestCommenter sha, job_name, job_number, build_url, user, repo, succeeded
-    #commenter.updateComments (e, r) -> console.log e if e?
-
     pusher = new StatusPusher sha, job_name, job_number, build_url, user, repo, succeeded
     pusher.updateStatus (e, r) -> console.log e if e?
     res.send 200
@@ -247,25 +150,15 @@ app.get '/jenkins/post_build', (req, res) ->
 # GitHub lets us know when a pull request has been opened.
 app.post '/github/post_receive', (req, res) ->
   payload = JSON.parse req.body.payload
-  console.log "post receive payload"
-  console.dir payload
 
   if payload.pull_request
     sha = payload.pull_request.head.sha
-    user = payload.pull_request.head.user
-    repo = payload.pull_request.head.repo
-    console.log "**user"
-    console.dir user
-    console.log "**repo"
-    console.dir repo
+    user = payload.pull_request.head.user.login
+    repo = payload.pull_request.head.repo.name
 
-    ## Get the sha status from earlier and insta-comment the status
-    #redis.hgetall sha, (err, obj) ->
-    #  # Convert stored string to boolean
-    #  obj.succeeded = (obj.succeeded == "true" ? true : false)
-
-    #  commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.build_url, obj.user, obj.repo, obj.succeeded
-    #  commenter.updateComments (e, r) -> console.log e if e?
+    pusher = new StatusPusher sha, null, null, null, user, repo, null
+    statuses = pusher.getStatusForSha sha
+    pusher.pushPendingStatusForSha sha if statuses.length == 0
 
     res.send 201
   else

@@ -78,6 +78,16 @@ heroku config:add GITHUB_USER_TOKEN=a55199221f3f66a7d238be5fa32e2cd84735ffc1
 
 ## Per repo
 
+### Configure app options
+
+```sh
+heroku config:add NO_OF_INDIVIDUAL_TESTS=3
+heroku config:add PENDING_DESCRIPTION="Currently running Application & Logic Unit Tests and Functional Tests on Jenkins"
+```
+
+`NO_OF_INDIVIDUAL_TESTS` is the number of tests we run on each commit. Success will only be reported after this number of tests have run.
+`PENDING_DESCRIPTION` is the string that appears on the pull request while the tests are running.
+
 ### Configure Jenkins Job
 
 Under **Build > Inject environemnt variables > Properties Content**, set `BUILD_STATUS` to
