@@ -50,14 +50,14 @@ class StatusPusher
     @post "/statuses/#{sha}", (state: "failure", target_url: targetUrl, description: description), (e, body) ->
       console.log e if e?
 
-  findTestResult: (sha, test) ->
+  findTestResult: (sha, test, cb) ->
     redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
       console.log "findTestResult - hgetall for #{sha}:#{test}..."
       console.dir buildObj
-      if buildObj.succeeded == "true"
-        return []
-      else
-        return [buildObj.build_url, buildObj.job_name]
+      ret = []
+      if buildObj.succeeded != "true"
+        ret = [buildObj.build_url, buildObj.job_name]
+      cb ret
 
   addTestToStore: (cb) =>
     console.log "addTestToStore - sha and job name"
@@ -82,10 +82,7 @@ class StatusPusher
   findAllTestResults: (sha, tests, cb) =>
     async.mapSeries tests,
       ((test, icb) =>
-        console.log "findallTestResults - arr:"
-        arr = @findTestResult(sha, test)
-        console.dir arr
-        icb null, arr),
+        @findTestResult(sha, test, ((ret) -> icb null, ret))),
       (err, results) ->
         console.log "findAllTestResults - found all test results"
         console.dir results
@@ -277,10 +274,6 @@ app.post '/github/post_receive', (req, res) ->
 
     #  commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.build_url, obj.user, obj.repo, obj.succeeded
     #  commenter.updateComments (e, r) -> console.log e if e?
-
-    # Mark the commit as pending.
-    pusher = new StatusPusher
-    pusher.pushPendingStatusForSha sha
 
     res.send 201
   else
