@@ -84,7 +84,7 @@ class StatusPusher
             description << buildObj.job_name
     if success
       console.log "success"
-      redis.scard @sha, (cErr, cReply) ->
+      redis.scard @sha, (cErr, cReply) =>
         noOfTests = parseInt cReply
         console.log "noOfTests"
         console.dir noOfTests
