@@ -83,20 +83,20 @@ class StatusPusher
             success = false
             targetUrl ||= buildObj.build_url
             description << buildObj.job_name
-    if success
-      console.log "success"
-      redis.scard sha, (cErr, cReply) =>
-        noOfTests = parseInt cReply
-        console.log "noOfTests"
-        console.dir noOfTests
-        if noOfTests == 3
-          @pushSuccessStatusForSha sha
-        else
-          @pushPendingStatusForSha sha
-    else
-      console.log "failure"
-      @pushFailureStatusForSha sha, targetUrl, description
-    cb null, 'done'
+          if success
+            console.log "success"
+            redis.scard sha, (cErr, cReply) =>
+              noOfTests = parseInt cReply
+              console.log "noOfTests"
+              console.dir noOfTests
+              if noOfTests == 3
+                @pushSuccessStatusForSha sha
+              else
+                @pushPendingStatusForSha sha
+          else
+            console.log "failure"
+            @pushFailureStatusForSha sha, targetUrl, description
+          cb null, 'done'
 
   updateStatus: (cb) ->
     async.series [
@@ -245,13 +245,16 @@ app.post '/github/post_receive', (req, res) ->
   if payload.pull_request
     sha = payload.pull_request.head.sha
 
-    # Get the sha status from earlier and insta-comment the status
+    ## Get the sha status from earlier and insta-comment the status
     #redis.hgetall sha, (err, obj) ->
-      # Convert stored string to boolean
-      #obj.succeeded = (obj.succeeded == "true" ? true : false)
+    #  # Convert stored string to boolean
+    #  obj.succeeded = (obj.succeeded == "true" ? true : false)
 
-      #commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.build_url, obj.user, obj.repo, obj.succeeded
-      #commenter.updateComments (e, r) -> console.log e if e?
+    #  commenter = new PullRequestCommenter sha, obj.job_name, obj.job_number, obj.build_url, obj.user, obj.repo, obj.succeeded
+    #  commenter.updateComments (e, r) -> console.log e if e?
+
+    # Mark the commit as pending.
+    pusher = new StatusPusher sha
 
     res.send 201
   else
