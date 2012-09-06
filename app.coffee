@@ -53,7 +53,7 @@ class StatusPusher
   # Test runs are stored in Redis under the key "<SHA>:<Jenkins job name>"
   findTestResult: (sha, test, cb) ->
     redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
-      ret = buildObj.succeeded == "true" ? [] : [buildObj.build_url, test]
+      ret = ((buildObj.succeeded == "true") ? [] : [buildObj.build_url, test])
       cb ret
 
   # This adds a test run to Redis based on the values passed to the constructor
