@@ -64,6 +64,9 @@ class StatusPusher
     redis.sadd @sha, @job_name
     cb null, 'done'
 
+  findStatusFromStore: (cb) =>
+    
+
   pushStatus: (cb) =>
     # Assuming 3 kinds of test here (functional, application, logic)
     success = true
@@ -71,31 +74,45 @@ class StatusPusher
     description = []
     console.log "pushStatus sha"
     console.dir @sha
-    redis.smembers @sha, (mErr, tests) =>
-      console.log "smembers..."
-      console.dir tests
-      tests.forEach (test, i) =>
-        redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) =>
-          console.log "hgetall for #{@sha}:#{test}..."
-          console.dir buildObj
-          if buildObj.succeeded != "true"
-            success = false
-            targetUrl ||= buildObj.build_url
-            description << buildObj.job_name
-          if success
-            console.log "success"
-            redis.scard @sha, (cErr, cReply) =>
-              noOfTests = parseInt cReply
-              console.log "noOfTests"
-              console.dir noOfTests
-              if noOfTests == 3
-                @pushSuccessStatusForSha @sha
+    async.series [
+      (acb) =>
+        redis.smembers @sha, (mErr, tests) =>
+          console.log "smembers..."
+          console.dir tests
+          tests.forEach (test, i) =>
+            redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) =>
+              console.log "hgetall for #{@sha}:#{test}..."
+              console.dir buildObj
+              if buildObj.succeeded != "true"
+                success = false
+                targetUrl ||= buildObj.build_url
+                description << buildObj.job_name
+                acb null, 'done'
               else
-                @pushPendingStatusForSha @sha
-          else
-            console.log "failure"
-            @pushFailureStatusForSha @sha, targetUrl, description
-          cb null, 'done'
+                acb null, 'done'
+      ,
+      (acb) =>
+        if success
+          console.log "success"
+          redis.scard @sha, (cErr, cReply) =>
+            noOfTests = parseInt cReply
+            console.log "noOfTests"
+            console.dir noOfTests
+            if noOfTests == 3
+              @pushSuccessStatusForSha @sha
+              acb null, 'done'
+            else
+              @pushPendingStatusForSha @sha
+              acb null, 'done'
+        else
+          console.log "failure"
+          @pushFailureStatusForSha @sha, targetUrl, description
+          acb null, 'done'
+      ,
+      (acb) =>
+        cb null, 'done'
+        acb null, 'done'
+    ]
 
   updateStatus: (cb) ->
     async.series [
