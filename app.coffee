@@ -52,7 +52,7 @@ class StatusPusher
 
   findTestResult: (sha, test) ->
     redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
-      console.log "hgetall for #{sha}:#{test}..."
+      console.log "findTestResult - hgetall for #{sha}:#{test}..."
       console.dir buildObj
       if buildObj.succeeded == "true"
         return []
@@ -60,7 +60,7 @@ class StatusPusher
         return [buildObj.build_url, buildObj.job_name]
 
   addTestToStore: (cb) =>
-    console.log "sha and job name"
+    console.log "addTestToStore - sha and job name"
     console.dir @sha
     console.dir @job_name
     redis.hmset "#{@sha}:#{@job_name}", {
@@ -75,15 +75,19 @@ class StatusPusher
 
   findAllTests: (sha, cb) ->
     redis.smembers sha, (mErr, tests) ->
-      console.log "smembers..."
+      console.log "findAllTests - smembers..."
       console.dir tests
       cb null, sha, tests
 
   findAllTestResults: (sha, tests, cb) =>
     async.mapSeries tests,
-      ((test, icb) => icb null, @findTestResult(sha, test)),
+      ((test, icb) =>
+        console.log "findallTestResults - arr:"
+        arr = @findTestResult(sha, test)
+        console.dir arr
+        icb null, arr),
       (err, results) ->
-        console.log "found all test results"
+        console.log "findAllTestResults - found all test results"
         console.dir results
         cb null, sha, tests, results
 
@@ -91,14 +95,16 @@ class StatusPusher
     async.rejectSeries results,
       ((result, icb) -> icb (result.length == 0 ? true : false)),
       (failedTests) =>
-        console.log "failed tests"
+        console.log "pushStatus - failed tests"
         console.dir failedTests
         if failedTests.length == 0
+          console.log "pushStatus - tests"
+          console.dir tests
           if tests.length == 3
-            console.log "success"
+            console.log "pushStatus success"
             @pushSuccessStatusForSha sha
           else
-            console.log "pending"
+            console.log "pushStatus pending"
             @pushPendingStatusForSha sha
           cb null, 'done'
         else
@@ -106,7 +112,7 @@ class StatusPusher
           async.map failedTests,
             ((result, icb) -> icb null, result[1]),
             (err, jobDescriptions) =>
-              console.log "failure"
+              console.log "pushStatus failure"
               console.dir failureUrl
               console.dir jobDescriptions
               @pushFailureStatusForSha sha, failureUrl, jobDescriptions
