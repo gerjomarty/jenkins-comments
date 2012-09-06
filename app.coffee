@@ -50,19 +50,14 @@ class StatusPusher
     @post "/statuses/#{sha}", (state: "failure", target_url: targetUrl, description: description), (e, body) ->
       console.log e if e?
 
+  # Test runs are stored in Redis under the key "<SHA>:<Jenkins job name>"
   findTestResult: (sha, test, cb) ->
     redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
-      console.log "findTestResult - hgetall for #{sha}:#{test}..."
-      console.dir buildObj
-      ret = []
-      if buildObj.succeeded != "true"
-        ret = [buildObj.build_url, buildObj.job_name]
+      ret = buildObj.succeeded == "true" ? [] : [buildObj.build_url, test]
       cb ret
 
+  # This adds a test run to Redis based on the values passed to the constructor
   addTestToStore: (cb) =>
-    console.log "addTestToStore - sha and job name"
-    console.dir @sha
-    console.dir @job_name
     redis.hmset "#{@sha}:#{@job_name}", {
       "job_number": @job_number,
       "build_url": @build_url,
@@ -70,13 +65,13 @@ class StatusPusher
       "repo": @repo,
       "succeeded": @succeeded
     }
+    # Also have a Redis set per SHA to easily find all test runs of a particular commit
     redis.sadd @sha, @job_name
     cb null, @sha
 
+  # This looks in the Redis set for the SHA and finds the tests already added
   findAllTests: (sha, cb) ->
     redis.smembers sha, (mErr, tests) ->
-      console.log "findAllTests - smembers..."
-      console.dir tests
       cb null, sha, tests
 
   findAllTestResults: (sha, tests, cb) =>
@@ -84,37 +79,26 @@ class StatusPusher
       ((test, icb) =>
         @findTestResult(sha, test, ((ret) -> icb null, ret))),
       (err, results) ->
-        console.log "findAllTestResults - found all test results"
-        console.dir results
         cb null, sha, tests, results
 
   pushStatus: (sha, tests, results, cb) =>
     async.rejectSeries results,
       ((result, icb) -> icb (result.length == 0 ? true : false)),
       (failedTests) =>
-        console.log "pushStatus - failed tests"
-        console.dir failedTests
         if failedTests.length == 0
-          console.log "pushStatus - tests"
-          console.dir tests
           if tests.length == 3
-            console.log "pushStatus success"
             @pushSuccessStatusForSha sha
           else
-            console.log "pushStatus pending"
             @pushPendingStatusForSha sha
-          cb null, 'done'
         else
           failureUrl = failedTests[0][0]
-          async.map failedTests,
+          async.mapSeries failedTests,
             ((result, icb) -> icb null, result[1]),
             (err, jobDescriptions) =>
-              console.log "pushStatus failure"
-              console.dir failureUrl
-              console.dir jobDescriptions
               @pushFailureStatusForSha sha, failureUrl, jobDescriptions
-              cb null, 'done'
+        cb null, 'done'
 
+  # async.waterfall passes on the arguments given to the function callback to the next function in the waterfall
   updateStatus: (cb) ->
     async.waterfall [
       @addTestToStore,
@@ -266,6 +250,12 @@ app.post '/github/post_receive', (req, res) ->
 
   if payload.pull_request
     sha = payload.pull_request.head.sha
+    user = payload.pull_request.head.user
+    repo = payload.pull_request.head.repo
+    console.log "**user"
+    console.dir user
+    console.log "**repo"
+    console.dir repo
 
     ## Get the sha status from earlier and insta-comment the status
     #redis.hgetall sha, (err, obj) ->
