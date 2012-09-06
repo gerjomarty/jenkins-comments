@@ -50,7 +50,16 @@ class StatusPusher
     @post "/statuses/#{sha}", (state: "failure", target_url: targetUrl, description: description), (e, body) ->
       console.log e if e?
 
-  addStatusToStore: (cb) =>
+  findTestResult: (sha, test) ->
+    redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
+      console.log "hgetall for #{sha}:#{test}..."
+      console.dir buildObj
+      if buildObj.succeeded == "true"
+        return []
+      else
+        return [buildObj.build_url, buildObj.job_name]
+
+  addTestToStore: (cb) =>
     console.log "sha and job name"
     console.dir @sha
     console.dir @job_name
@@ -62,63 +71,57 @@ class StatusPusher
       "succeeded": @succeeded
     }
     redis.sadd @sha, @job_name
-    cb null, 'done'
+    cb null, @sha
 
-  findStatusFromStore: (cb) =>
-    
+  findAllTests: (sha, cb) ->
+    redis.smembers sha, (mErr, tests) ->
+      console.log "smembers..."
+      console.dir tests
+      cb null, sha, tests
 
-  pushStatus: (cb) =>
-    # Assuming 3 kinds of test here (functional, application, logic)
-    success = true
-    targetUrl = null
-    description = []
-    console.log "pushStatus sha"
-    console.dir @sha
-    async.series [
-      (acb) =>
-        redis.smembers @sha, (mErr, tests) =>
-          console.log "smembers..."
-          console.dir tests
-          tests.forEach (test, i) =>
-            redis.hgetall "#{@sha}:#{test}", (gErr, buildObj) =>
-              console.log "hgetall for #{@sha}:#{test}..."
-              console.dir buildObj
-              if buildObj.succeeded != "true"
-                success = false
-                targetUrl ||= buildObj.build_url
-                description << buildObj.job_name
-                acb null, 'done'
-              else
-                acb null, 'done'
-      ,
-      (acb) =>
-        if success
-          console.log "success"
-          redis.scard @sha, (cErr, cReply) =>
-            noOfTests = parseInt cReply
-            console.log "noOfTests"
-            console.dir noOfTests
-            if noOfTests == 3
-              @pushSuccessStatusForSha @sha
-              acb null, 'done'
-            else
-              @pushPendingStatusForSha @sha
-              acb null, 'done'
+  findAllTestResults: (sha, tests, cb) =>
+    async.map tests,
+      ((test, icb) => icb null, @findTestResult(sha, test)),
+      (err, results) ->
+        console.log "found all test results"
+        console.dir results
+        cb null, sha, tests, results
+
+  pushStatus: (sha, tests, results, cb) =>
+    async.reject results,
+      ((result, icb) -> icb (result.length == 0)),
+      (failedTests) =>
+        console.log "failed tests"
+        console.dir failedTests
+        if failedTests.length == 0
+          if tests.length == 3
+            console.log "success"
+            @pushSuccessStatusForSha sha
+          else
+            console.log "pending"
+            @pushPendingStatusForSha sha
+          cb null, 'done'
         else
-          console.log "failure"
-          @pushFailureStatusForSha @sha, targetUrl, description
-          acb null, 'done'
-      ,
-      (acb) =>
-        cb null, 'done'
-        acb null, 'done'
-    ]
+          failureUrl = failedTests[0][0]
+          async.map failedTests,
+            ((result, icb) -> icb null, result[1]),
+            (err, jobDescriptions) =>
+              console.log "failure"
+              console.dir failureUrl
+              console.dir jobDescriptions
+              @pushFailureStatusForSha sha, failureUrl, jobDescriptions
+              cb null, 'done'
 
   updateStatus: (cb) ->
-    async.series [
-      @addStatusToStore,
+    async.waterfall [
+      @addTestToStore,
+      @findAllTests,
+      @findAllTestResults,
       @pushStatus
     ], cb
+
+
+
 
 class PullRequestCommenter
   BUILDREPORT = "**Build Status**:"
@@ -270,7 +273,8 @@ app.post '/github/post_receive', (req, res) ->
     #  commenter.updateComments (e, r) -> console.log e if e?
 
     # Mark the commit as pending.
-    pusher = new StatusPusher sha
+    pusher = new StatusPusher
+    pusher.pushPendingStatusForSha sha
 
     res.send 201
   else
