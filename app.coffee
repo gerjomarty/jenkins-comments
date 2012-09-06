@@ -81,7 +81,7 @@ class StatusPusher
 
   findAllTestResults: (sha, tests, cb) =>
     async.map tests,
-      ((test, icb) => icb null, @findTestResult(sha, test)),
+      ((test, icb) => icb null, findTestResult(sha, test)),
       (err, results) ->
         console.log "found all test results"
         console.dir results
