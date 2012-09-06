@@ -53,7 +53,8 @@ class StatusPusher
   # Test runs are stored in Redis under the key "<SHA>:<Jenkins job name>"
   findTestResult: (sha, test, cb) ->
     redis.hgetall "#{sha}:#{test}", (gErr, buildObj) ->
-      ret = ((buildObj.succeeded == "true") ? [] : [buildObj.build_url, test])
+      ret = []
+      ret = [buildObj.build_url, test] if buildObj.succeeded != "true"
       cb ret
 
   # This adds a test run to Redis based on the values passed to the constructor
@@ -90,13 +91,14 @@ class StatusPusher
             @pushSuccessStatusForSha sha
           else
             @pushPendingStatusForSha sha
+          cb null, 'done'
         else
           failureUrl = failedTests[0][0]
           async.mapSeries failedTests,
             ((result, icb) -> icb null, result[1]),
             (err, jobDescriptions) =>
               @pushFailureStatusForSha sha, failureUrl, jobDescriptions
-        cb null, 'done'
+              cb null, 'done'
 
   # async.waterfall passes on the arguments given to the function callback to the next function in the waterfall
   updateStatus: (cb) ->
