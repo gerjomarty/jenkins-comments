@@ -109,13 +109,6 @@ class StatusPusher
       @pushStatus
     ], cb
 
-  updateStatusFromExistingSha: (cb) =>
-    async.waterfall [
-      @findAllTests(@sha),
-      @findAllTestResults,
-      @pushStatus
-    ], cb
-
 app = module.exports = express.createServer()
 
 app.configure ->
@@ -168,8 +161,6 @@ app.post '/github/post_receive', (req, res) ->
     statuses = pusher.getStatusForSha sha, (e, r) -> console.log e if e?
     if statuses.length == 0
       pusher.pushPendingStatusForSha sha
-
-    pusher.updateStatusFromExistingSha (e, r) -> console.log e if e?
 
     res.send 201
   else
