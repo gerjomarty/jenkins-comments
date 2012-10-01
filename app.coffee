@@ -88,8 +88,10 @@ class StatusPusher
       (failedTests) =>
         if failedTests.length == 0
           if tests.length == parseInt(process.env.NO_OF_INDIVIDUAL_TESTS)
+            console.log "All #{tests.length} tests passed - pushing success status"
             @pushSuccessStatusForSha sha
           else
+            console.log "#{tests.length}/#{parseInt(process.env.NO_OF_INDIVIDUAL_TESTS)} tests passed so far"
             @pushPendingStatusForSha sha
           cb null, 'done'
         else
@@ -97,6 +99,7 @@ class StatusPusher
           async.mapSeries failedTests,
             ((result, icb) -> icb null, result[1]),
             (err, jobDescriptions) =>
+              console.log "At least one test failed - pushing failure status"
               @pushFailureStatusForSha sha, failureUrl, jobDescriptions
               cb null, 'done'
 
@@ -141,6 +144,7 @@ app.get '/jenkins/post_build', (req, res) ->
     repo = req.param 'repo'
     succeeded = req.param('status') is 'success'
 
+    console.log "Jenkins completed test run for #{job_name} - SHA #{sha}"
     pusher = new StatusPusher sha, job_name, job_number, build_url, user, repo, succeeded
     pusher.updateStatus (e, r) -> console.log e if e?
     res.send 200
@@ -156,11 +160,15 @@ app.post '/github/post_receive', (req, res) ->
     user = payload.pull_request.head.user.login
     repo = payload.pull_request.head.repo.name
 
+    console.log "Github received commit SHA #{sha}"
     pusher = new StatusPusher sha, null, null, null, user, repo, null
     pusher.getStatusForSha sha, (e, statuses) ->
       console.log e if e?
       if statuses.length == 0
+        console.log "No existing statuses for SHA #{sha}"
         pusher.pushPendingStatusForSha sha
+      else
+        console.log "Existing statuses for SHA #{sha}"
       res.send 201
   else
     res.send 404
