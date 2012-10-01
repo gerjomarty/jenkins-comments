@@ -157,12 +157,11 @@ app.post '/github/post_receive', (req, res) ->
     repo = payload.pull_request.head.repo.name
 
     pusher = new StatusPusher sha, null, null, null, user, repo, null
-
-    statuses = pusher.getStatusForSha sha, (e, r) -> console.log e if e?
-    if statuses.length == 0
-      pusher.pushPendingStatusForSha sha
-
-    res.send 201
+    pusher.getStatusForSha sha, (e, statuses) ->
+      console.log e if e?
+      if statuses.length == 0
+        pusher.pushPendingStatusForSha sha
+      res.send 201
   else
     res.send 404
 
