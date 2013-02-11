@@ -19,13 +19,13 @@ class StatusPusher
   post: (path, obj, cb) =>
     console.log "POST #{@api}#{path}#{@token}"
     console.dir obj
-    request.post { uri: "#{@api}#{path}#{@token}", json: obj }, (e, r, body) ->
+    request.post { uri: "#{@api}#{path}#{@token}", json: obj, headers: {"User-Agent": process.env.USER_AGENT} }, (e, r, body) ->
       console.log body if process.env.DEBUG
       cb e, body
 
   get: (path, cb) =>
     console.log "GET #{@api}#{path}#{@token}"
-    request.get { uri: "#{@api}#{path}#{@token}", json: true }, (e, r, body) ->
+    request.get { uri: "#{@api}#{path}#{@token}", json: true, headers: {"User-Agent": process.env.USER_AGENT} }, (e, r, body) ->
       console.log body if process.env.DEBUG
       cb e, body
 
