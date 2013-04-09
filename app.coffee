@@ -15,8 +15,8 @@ class StatusPusher
   constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
     @api = "https://api.github.com/repos/#{@user}/#{@repo}"
     @token = "?access_token=#{process.env.GITHUB_USER_TOKEN}"
-    @pending_description = eval("process.env.PENDING_DESCRIPTION_#{_.str.underscored(@user).toUpperCase()}_#{_.str.underscored(@repo).toUpperCase()}")
-    @number_of_individual_tests = parseInt(eval("process.env.NO_OF_INDIVIDUAL_TESTS_#{_.str.underscored(@user).toUpperCase()}_#{_.str.underscored(@repo).toUpperCase()}"))
+    @pending_description = eval("process.env.PENDING_DESCRIPTION_#{_s.underscored(@user).toUpperCase()}_#{_s.underscored(@repo).toUpperCase()}")
+    @number_of_individual_tests = parseInt(eval("process.env.NO_OF_INDIVIDUAL_TESTS_#{_s.underscored(@user).toUpperCase()}_#{_s.underscored(@repo).toUpperCase()}"))
 
   post: (path, obj, cb) =>
     console.log "POST #{@api}#{path}#{@token}"
