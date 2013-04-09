@@ -74,21 +74,25 @@ requests. Add that token to Heroku:
 
 ```sh
 heroku config:add GITHUB_USER_TOKEN=a55199221f3f66a7d238be5fa32e2cd84735ffc1
+heroku config:add USER_AGENT="User agent identifying app here (and a URL)"
 ```
+
+`USER_AGENT` is the user agent string that is now required for Github API requests. Make it descriptive.
 
 ## Per repo
 
 ### Configure app options
 
+To support different repos, add the username and repo in upper case after each
+environment variable title like below...
+
 ```sh
-heroku config:add NO_OF_INDIVIDUAL_TESTS=3
-heroku config:add PENDING_DESCRIPTION="Currently running Application & Logic Unit Tests and Functional Tests on Jenkins"
-heroku config:add USER_AGENT="User agent identifying app here (and a URL)"
+heroku config:add NO_OF_INDIVIDUAL_TESTS_USERNAME_REPONAME=3
+heroku config:add PENDING_DESCRIPTION_USERNAME_REPONAME="Currently running Application & Logic Unit Tests and Functional Tests on Jenkins"
 ```
 
 `NO_OF_INDIVIDUAL_TESTS` is the number of tests we run on each commit. Success will only be reported after this number of tests have run.
 `PENDING_DESCRIPTION` is the string that appears on the pull request while the tests are running.
-`USER_AGENT` is the user agent string that is now required for Github API requests. Make it descriptive.
 
 ### Configure Jenkins Job
 

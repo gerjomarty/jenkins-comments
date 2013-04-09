@@ -15,6 +15,8 @@ class StatusPusher
   constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
     @api = "https://api.github.com/repos/#{@user}/#{@repo}"
     @token = "?access_token=#{process.env.GITHUB_USER_TOKEN}"
+    @pending_description = eval("process.env.PENDING_DESCRIPTION_#{@user.toUpperCase()}_#{@repo.toUpperCase()}")
+    @number_of_individual_tests = parseInt(eval("process.env.NO_OF_INDIVIDUAL_TESTS_#{@user.toUpperCase()}_#{@repo.toUpperCase()}"))
 
   post: (path, obj, cb) =>
     console.log "POST #{@api}#{path}#{@token}"
@@ -37,7 +39,7 @@ class StatusPusher
       console.log e if e?
 
   pushPendingStatusForSha: (sha) =>
-    @post "/statuses/#{sha}", (state: "pending", description: process.env.PENDING_DESCRIPTION), (e, body) ->
+    @post "/statuses/#{sha}", (state: "pending", description: @pending_description), (e, body) ->
       console.log e if e?
 
   pushErrorStatusForSha: (sha, targetUrl, description) =>
@@ -87,11 +89,11 @@ class StatusPusher
       ((result, icb) -> icb (result.length == 0 ? true : false)),
       (failedTests) =>
         if failedTests.length == 0
-          if tests.length == parseInt(process.env.NO_OF_INDIVIDUAL_TESTS)
+          if tests.length == @number_of_individual_tests
             console.log "All #{tests.length} tests passed - pushing success status"
             @pushSuccessStatusForSha sha
           else
-            console.log "#{tests.length}/#{parseInt(process.env.NO_OF_INDIVIDUAL_TESTS)} tests passed so far"
+            console.log "#{tests.length}/#{@number_of_individual_tests} tests passed so far"
             @pushPendingStatusForSha sha
           cb null, 'done'
         else
