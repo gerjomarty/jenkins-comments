@@ -5,19 +5,19 @@ _s    = require 'underscore.string'
 GithubCaller = require('./github_caller').GithubCaller
 StatusPusher = require('./status_pusher').StatusPusher
 
+if process.env.REDISTOGO_URL
+  rtg   = require("url").parse process.env.REDISTOGO_URL
+  redis = require("redis").createClient rtg.port, rtg.hostname
+  redis.auth rtg.auth.split(":")[1]
+else
+  redis = require("redis").createClient()
+
 class exports.Commentator
   constructor: (@sha, @job_name, @job_number, @build_url, @user, @repo, @succeeded) ->
     pending_desc = eval("process.env.PENDING_DESCRIPTION_#{_s.underscored(@user).toUpperCase()}_#{_s.underscored(@repo).toUpperCase()}")
     @caller = new GithubCaller(@user, @repo, process.env.GITHUB_USER_TOKEN, process.env.USER_AGENT)
     @pusher = new StatusPusher(@user, @repo, @sha, pending_desc, @caller)
     @number_of_individual_tests = parseInt(eval("process.env.NO_OF_INDIVIDUAL_TESTS_#{_s.underscored(@user).toUpperCase()}_#{_s.underscored(@repo).toUpperCase()}"))
-
-    if process.env.REDISTOGO_URL
-      rtg   = require("url").parse process.env.REDISTOGO_URL
-      redis = require("redis").createClient rtg.port, rtg.hostname
-      redis.auth rtg.auth.split(":")[1]
-    else
-      redis = require("redis").createClient()
 
   # Test runs are stored in Redis under the key "<SHA>:<Jenkins job name>"
   findTestResult: (sha, test, cb) ->
