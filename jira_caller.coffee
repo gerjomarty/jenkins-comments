@@ -39,7 +39,7 @@ class exports.JiraCaller extends RestCaller
     moveIssueToCodeReview: (issue_key, comment, cb) =>
         @makeTransition issue_key, "Start Code Review", comment, cb
 
-    passCodeReview: (issue_key, comment, cb) =>
+    passedCodeReview: (issue_key, comment, cb) =>
         @makeTransition issue_key, "Pass Code Review", comment, cb
 
     failedCodeReview: (issue_key, comment, cb) =>

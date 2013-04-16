@@ -79,6 +79,17 @@ heroku config:add USER_AGENT="User agent identifying app here (and a URL)"
 
 `USER_AGENT` is the user agent string that is now required for Github API requests. Make it descriptive.
 
+If branches start with a valid JIRA ticket and you would like to turn on JIRA integration for automatically transitioning stories between states, also add these environment variables:
+
+```sh
+heroku config:add JIRA_BASE_URI=https://mycompany.atlassian.net
+heroku config:add JIRA_BOT_USERNAME=jenkinscommentator
+heroku config:add JIRA_BOT_PASSWORD=sekrit
+heroku config:add JIRA_MOVE_TO_CODE_REVIEW_COMMENT="Github Pull Request opened. Issue moved to Code Review."
+heroku config:add JIRA_PASSED_CODE_REVIEW_COMMENT="Github Pull Request merged. Issue passed Code Review."
+heroku config:add JIRA_FAILED_CODE_REVIEW_COMMENT="Github Pull Request closed without merging. Issue failed Code Review."
+```
+
 ## Per repo
 
 ### Configure app options

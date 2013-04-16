@@ -3,6 +3,9 @@ express = require 'express'
 GithubCaller = require('./github_caller').GithubCaller
 StatusPusher = require('./status_pusher').StatusPusher
 Commentator  = require('./commentator').Commentator
+JiraCaller   = require('./jira_caller').JiraCaller
+
+JIRA_ISSUE_REGEXP = /^[A-Za-z]+-\d+/
 
 app = module.exports = express.createServer()
 
@@ -54,9 +57,8 @@ app.post '/github/post_receive', (req, res) ->
     console.log "Github received commit SHA #{sha}"
 
     pending_desc = eval("process.env.PENDING_DESCRIPTION_#{_s.underscored(user).toUpperCase()}_#{_s.underscored(repo).toUpperCase()}")
-
-    caller = new GithubCaller(user, repo, process.env.GITHUB_USER_TOKEN, process.env.USER_AGENT)
-    pusher = new StatusPusher(user, repo, sha, pending_desc, caller)
+    github_caller = new GithubCaller(user, repo, process.env.GITHUB_USER_TOKEN, process.env.USER_AGENT)
+    pusher = new StatusPusher(user, repo, sha, pending_desc, github_caller)
 
     pusher.getStatus (e, statuses) ->
       console.log e if e?
@@ -65,7 +67,27 @@ app.post '/github/post_receive', (req, res) ->
         pusher.pushPending
       else
         console.log "Existing statuses for SHA #{sha}"
-      res.send 201
+
+    jira_base_uri = process.env.JIRA_BASE_URI
+    jira_bot_username = process.env.JIRA_BOT_USERNAME
+    jira_bot_password = process.env.JIRA_BOT_PASSWORD
+
+    if jira_base_uri? and jira_bot_username? and jira_bot_password?
+      jira_caller = new JiraCaller(jira_base_uri, jira_bot_username, jira_bot_password, null, process.env.USER_AGENT)
+      issue_key = JIRA_ISSUE_REGEXP.exec payload.pull_request.head.ref
+      switch payload.action
+        when "opened", "reopened"
+          jira_caller.moveIssueToCodeReview issue_key, process.env.JIRA_MOVE_TO_CODE_REVIEW_COMMENT, (e) ->
+            console.log e if e?
+        when "closed"
+          if payload.pull_request.merged
+            jira_caller.passedCodeReview issue_key, process.env.JIRA_PASSED_CODE_REVIEW_COMMENT, (e) ->
+              console.log e if e?
+          else
+            jira_caller.failedCodeReview issue_key, process.env.JIRA_FAILED_CODE_REVIEW_COMMENT, (e) ->
+              console.log e if e?
+
+    res.send 201
   else
     res.send 404
 
