@@ -36,7 +36,7 @@ class exports.JiraCaller extends RestCaller
             @postTransition issue_key, transition.id, comment, (postErr) ->
               cb postErr
           else
-            cb "Transition #{transition_name} for issue #{issue_key} not found"
+            cb {jira_error: {transition_not_found: transition_name, issue_key: issue_key}}
 
   moveIssueToCodeReview: (issue_key, comment, cb) =>
     @makeTransition issue_key, "Start Code Review", comment, cb

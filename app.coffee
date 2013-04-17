@@ -1,10 +1,11 @@
 express = require 'express'
 _s      = require 'underscore.string'
 
-GithubCaller = require('./github_caller').GithubCaller
-StatusPusher = require('./status_pusher').StatusPusher
-Commentator  = require('./commentator').Commentator
-JiraCaller   = require('./jira_caller').JiraCaller
+GithubCaller    = require('./github_caller').GithubCaller
+StatusPusher    = require('./status_pusher').StatusPusher
+GithubCommenter = require('./github_commenter').GithubCommenter
+Commentator     = require('./commentator').Commentator
+JiraCaller      = require('./jira_caller').JiraCaller
 
 JIRA_ISSUE_REGEXP = /^[A-Za-z]+-\d+/
 
@@ -61,6 +62,7 @@ app.post '/github/post_receive', (req, res) ->
     pending_desc = eval("process.env.PENDING_DESCRIPTION_#{_s.underscored(user).toUpperCase()}_#{_s.underscored(repo).toUpperCase()}")
     github_caller = new GithubCaller(user, repo, process.env.GITHUB_USER_TOKEN, process.env.USER_AGENT)
     pusher = new StatusPusher(user, repo, sha, pending_desc, github_caller)
+    github_commenter = new GithubCommenter(user, repo, process.env.GITHUB_USER_TOKEN, process.env.USER_AGENT)
 
     pusher.getStatus (e, statuses) ->
       console.log e if e?
@@ -76,18 +78,27 @@ app.post '/github/post_receive', (req, res) ->
 
     if jira_base_uri? and jira_bot_username? and jira_bot_password?
       jira_caller = new JiraCaller(jira_base_uri, jira_bot_username, jira_bot_password, null, process.env.USER_AGENT)
-      issue_key = JIRA_ISSUE_REGEXP.exec payload.pull_request.head.ref
+      jira_issue_key = JIRA_ISSUE_REGEXP.exec payload.pull_request.head.ref
       switch payload.action
         when "opened", "reopened"
-          jira_caller.moveIssueToCodeReview issue_key, process.env.JIRA_MOVE_TO_CODE_REVIEW_COMMENT, (e) ->
-            console.log e if e?
+          jira_caller.moveIssueToCodeReview jira_issue_key, process.env.JIRA_MOVE_TO_CODE_REVIEW_COMMENT, (e) ->
+            if e? and e.jira_error? and e.jira_error.transition_not_found?
+              github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to Code Review manually."
+            else
+              console.log e if e?
         when "closed"
           if payload.pull_request.merged
-            jira_caller.passedCodeReview issue_key, process.env.JIRA_PASSED_CODE_REVIEW_COMMENT, (e) ->
-              console.log e if e?
+            jira_caller.passedCodeReview jira_issue_key, process.env.JIRA_PASSED_CODE_REVIEW_COMMENT, (e) ->
+              if e? and e.jira_error? and e.jira_error.transition_not_found?
+                github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to QA manually."
+              else
+                console.log e if e?
           else
-            jira_caller.failedCodeReview issue_key, process.env.JIRA_FAILED_CODE_REVIEW_COMMENT, (e) ->
-              console.log e if e?
+            jira_caller.failedCodeReview jira_issue_key, process.env.JIRA_FAILED_CODE_REVIEW_COMMENT, (e) ->
+              if e? and e.jira_error? and e.jira_error.transition_not_found?
+                github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to In Progress manually."
+              else
+                console.log e if e?
 
     res.send 201
   else
