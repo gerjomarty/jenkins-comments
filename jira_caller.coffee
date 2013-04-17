@@ -20,7 +20,7 @@ class exports.JiraCaller extends RestCaller
         "id": transition_id.toString()
       }
     }
-    @post "/issue/#{issue_key}/transitions", post_body, (e, body) ->
+    @post "/issue/#{issue_key}/transitions", JSON.stringify(post_body), (e, body) ->
       cb e
 
   findTransition: (transitions, transition_name, cb) =>
