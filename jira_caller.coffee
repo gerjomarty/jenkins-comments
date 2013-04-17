@@ -28,7 +28,9 @@ class exports.JiraCaller extends RestCaller
 
   makeTransition: (issue_key, transition_name, comment, cb) =>
     @getTransitions issue_key, (getErr, transitions) =>
-      cb getErr if getErr?
+      if getErr?
+        cb getErr
+      else
         @findTransition transitions, transition_name, (transition) =>
           if transition?
             @postTransition issue_key, transition["id"], comment, (postErr) ->
