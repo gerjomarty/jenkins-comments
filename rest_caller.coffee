@@ -12,14 +12,14 @@ class exports.RestCaller
   post: (path, json_object, cb) =>
     uri = @base_uri + path + @query
     console.log "POST #{uri}"
-    console.dir json_object
-    request.post {uri: uri, json: json_object, headers: @headers}, (e, r, body) ->
+    console.dir JSON.stringify(json_object)
+    request.post {uri: uri, json: true, body: json_object, headers: @headers}, (e, r, body) ->
       console.log body if process.env.DEBUG
       cb e, body
 
   get: (path, cb) =>
     uri = @base_uri + path + @query
     console.log "GET #{uri}"
-    request.get {uri: uri, headers: @headers}, (e, r, body) ->
+    request.get {uri: uri, json: true, headers: @headers}, (e, r, body) ->
       console.log body if process.env.DEBUG
       cb e, body

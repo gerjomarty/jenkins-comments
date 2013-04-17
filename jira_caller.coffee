@@ -13,11 +13,11 @@ class exports.JiraCaller extends RestCaller
 
   postTransition: (issue_key, transition_id, comment, cb) =>
     post_body = {
-      update: {
-        comment: [{add: {body: comment}}]
+      "update": {
+        "comment": [{"add": {"body": comment}}]
       },
-      transition: {
-        id: transition_id.toString()
+      "transition": {
+        "id": transition_id.toString()
       }
     }
     @post "/issue/#{issue_key}/transitions", post_body, (e, body) ->
