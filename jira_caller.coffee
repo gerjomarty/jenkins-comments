@@ -9,22 +9,22 @@ class exports.JiraCaller extends RestCaller
 
   getTransitions: (issue_key, cb) =>
     @get "/issue/#{issue_key}/transitions", (e, body) ->
-      cb e, body["transitions"]
+      cb e, body.transitions
 
   postTransition: (issue_key, transition_id, comment, cb) =>
     post_body = {
-      "update": {
-        "comment": [{"add": {"body": comment}}]
+      update: {
+        comment: [{add: {body: comment}}]
       },
-      "transition": {
-        "id": transition_id.toString()
+      transition: {
+        id: transition_id.toString()
       }
     }
-    @post "/issue/#{issue_key}/transitions", JSON.stringify(post_body), (e, body) ->
+    @post "/issue/#{issue_key}/transitions", post_body, (e, body) ->
       cb e
 
   findTransition: (transitions, transition_name, cb) =>
-    cb _.findWhere(transitions, {"name": transition_name})
+    cb _.findWhere(transitions, {name: transition_name})
 
   makeTransition: (issue_key, transition_name, comment, cb) =>
     @getTransitions issue_key, (getErr, transitions) =>
@@ -33,7 +33,7 @@ class exports.JiraCaller extends RestCaller
       else
         @findTransition transitions, transition_name, (transition) =>
           if transition?
-            @postTransition issue_key, transition["id"], comment, (postErr) ->
+            @postTransition issue_key, transition.id, comment, (postErr) ->
               cb postErr
           else
             cb "Transition #{transition_name} for issue #{issue_key} not found"

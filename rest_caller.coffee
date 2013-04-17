@@ -20,6 +20,6 @@ class exports.RestCaller
   get: (path, cb) =>
     uri = @base_uri + path + @query
     console.log "GET #{uri}"
-    request.get {uri: uri, json: true, headers: @headers}, (e, r, body) ->
+    request.get {uri: uri, headers: @headers}, (e, r, body) ->
       console.log body if process.env.DEBUG
       cb e, body
