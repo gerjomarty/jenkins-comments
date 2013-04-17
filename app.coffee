@@ -83,20 +83,23 @@ app.post '/github/post_receive', (req, res) ->
         when "opened", "reopened"
           jira_caller.moveIssueToCodeReview jira_issue_key, process.env.JIRA_MOVE_TO_CODE_REVIEW_COMMENT, (e) ->
             if e? and e.jira_error? and e.jira_error.transition_not_found?
-              github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to Code Review manually."
+              github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to Code Review manually.", (postErr) ->
+                console.log postErr if postErr?
             else
               console.log e if e?
         when "closed"
           if payload.pull_request.merged
             jira_caller.passedCodeReview jira_issue_key, process.env.JIRA_PASSED_CODE_REVIEW_COMMENT, (e) ->
               if e? and e.jira_error? and e.jira_error.transition_not_found?
-                github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to QA manually."
+                github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to QA manually.", (postErr) ->
+                  console.log postErr if postErr?
               else
                 console.log e if e?
           else
             jira_caller.failedCodeReview jira_issue_key, process.env.JIRA_FAILED_CODE_REVIEW_COMMENT, (e) ->
               if e? and e.jira_error? and e.jira_error.transition_not_found?
-                github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to In Progress manually."
+                github_commenter.postCommentOnIssue payload.number, "JIRA issue #{jira_issue_key} in incorrect state. Please move to In Progress manually.", (postErr) ->
+                  console.log postErr if postErr?
               else
                 console.log e if e?
 
