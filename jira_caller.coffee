@@ -24,7 +24,7 @@ class exports.JiraCaller extends RestCaller
       cb e
 
   findTransition: (transitions, transition_name, cb) =>
-    cb _.findWhere(transitions, {name: transition_name})
+    cb _.findWhere(transitions, {"name": transition_name})
 
   makeTransition: (issue_key, transition_name, comment, cb) =>
     @getTransitions issue_key, (getErr, transitions) =>
