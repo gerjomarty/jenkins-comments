@@ -1,4 +1,5 @@
 express = require 'express'
+_s      = require 'underscore.string'
 
 GithubCaller = require('./github_caller').GithubCaller
 StatusPusher = require('./status_pusher').StatusPusher
