@@ -11,6 +11,7 @@ class exports.StatusPusher
   pushPending: =>
     @caller.post "/statuses/#{@sha}", (state: "pending", description: @pending_desc), (e, body) ->
       console.log e if e?
+      console.log body if process.env.DEBUG
 
   pushError: (targetUrl, descriptions) =>
     description = descriptions.join ", "
