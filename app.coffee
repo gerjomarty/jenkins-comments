@@ -66,11 +66,13 @@ app.post '/github/post_receive', (req, res) ->
 
     pusher.getStatus (e, statuses) ->
       console.log e if e?
-      if statuses.length == 0
-        console.log "No existing statuses for SHA #{sha}"
-        pusher.pushPending
-      else
-        console.log "Existing statuses for SHA #{sha}"
+      number_of_individual_tests = parseInt(eval("process.env.NO_OF_INDIVIDUAL_TESTS_#{_s.underscored(user).toUpperCase()}_#{_s.underscored(repo).toUpperCase()}"))
+      if number_of_individual_tests > 0
+        if statuses.length == 0
+          console.log "No existing statuses for SHA #{sha}"
+          pusher.pushPending
+        else
+          console.log "Existing statuses for SHA #{sha}"
 
     jira_base_uri = process.env.JIRA_BASE_URI
     jira_bot_username = process.env.JIRA_BOT_USERNAME
