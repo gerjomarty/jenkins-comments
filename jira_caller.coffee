@@ -39,10 +39,18 @@ class exports.JiraCaller extends RestCaller
             cb {jira_error: {transition_not_found: {transition_name: transition_name, issue_key: issue_key}}}
 
   moveIssueToCodeReview: (issue_key, comment, cb) =>
-    @makeTransition issue_key, "Start Code Review", comment, cb
+    @makeTransition issue_key, "Dev Complete", comment, (e) =>
+      if e? and e.jira_error? and e.jira_error.transition_not_found?
+        @makeTransition issue_key, "Start Code Review", comment, cb
+      else
+        cb e
 
   passedCodeReview: (issue_key, comment, cb) =>
-    @makeTransition issue_key, "Pass Code Review", comment, cb
+    @makeTransition issue_key, "Passed Code Review", comment, (e) =>
+      if e? and e.jira_error? and e.jira_error.transition_not_found?
+        @makeTransition issue_key, "Pass Code Review", comment, cb
+      else
+        cb e
 
   failedCodeReview: (issue_key, comment, cb) =>
     @makeTransition issue_key, "Failed Code Review", comment, cb
