@@ -7,7 +7,7 @@ GithubCommenter = require('./github_commenter').GithubCommenter
 Commentator     = require('./commentator').Commentator
 JiraCaller      = require('./jira_caller').JiraCaller
 
-JIRA_ISSUE_REGEXP = /^[A-Za-z]+-\d+/
+JIRA_ISSUE_REGEXP = /^(?:.*\/)?([A-Za-z]+-\d+)/
 
 app = module.exports = express.createServer()
 
@@ -80,7 +80,7 @@ app.post '/github/post_receive', (req, res) ->
 
     if jira_base_uri? and jira_bot_username? and jira_bot_password?
       jira_caller = new JiraCaller(jira_base_uri, jira_bot_username, jira_bot_password, null, process.env.USER_AGENT)
-      jira_issue_key = JIRA_ISSUE_REGEXP.exec payload.pull_request.head.ref
+      jira_issue_key = JIRA_ISSUE_REGEXP.exec(payload.pull_request.head.ref)[1]
       switch payload.action
         when "opened", "reopened"
           jira_caller.moveIssueToCodeReview jira_issue_key, process.env.JIRA_MOVE_TO_CODE_REVIEW_COMMENT, (e) ->
