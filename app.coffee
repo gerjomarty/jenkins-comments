@@ -80,7 +80,7 @@ app.post '/github/post_receive', (req, res) ->
 
     if jira_base_uri? and jira_bot_username? and jira_bot_password?
       jira_caller = new JiraCaller(jira_base_uri, jira_bot_username, jira_bot_password, null, process.env.USER_AGENT)
-      jira_issue_key = JIRA_ISSUE_REGEXP.exec(payload.pull_request.head.ref)[1]
+      jira_issue_key = JIRA_ISSUE_REGEXP.exec(payload.pull_request.head.ref)[1].toUpperCase()
       switch payload.action
         when "opened", "reopened"
           jira_caller.moveIssueToCodeReview jira_issue_key, process.env.JIRA_MOVE_TO_CODE_REVIEW_COMMENT, (e) ->
